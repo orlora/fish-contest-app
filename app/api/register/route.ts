@@ -1,4 +1,3 @@
-// app/api/register/route.ts
 import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
@@ -10,7 +9,7 @@ export async function POST(request: Request) {
     const payload = {
       sheetName: "deposits",
       data: [
-        `DEP${Date.now()}`, // สร้าง ID อัตโนมัติจาก Timestamp
+        "", // ส่งเป็น string ว่างๆ ไปก่อน ให้ Google Sheets ไปจัดการรันเลข ID แทน
         body.billHeader || "-",
         body.applicantName,
         body.custodianName || "-",
@@ -19,8 +18,6 @@ export async function POST(request: Request) {
       ]
     };
 
-    // ยิงข้อมูลไปที่ Google Apps Script
-    // GOOGLE_SCRIPT_URL จะถูกตั้งค่าไว้ใน Environment Variables ของ Vercel
     const response = await fetch(process.env.GOOGLE_SCRIPT_URL as string, {
       method: 'POST',
       headers: {

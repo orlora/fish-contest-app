@@ -1,134 +1,385 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
+import { Playfair_Display } from "next/font/google";
 
-interface ResultBlock {
+const playfair = Playfair_Display({
+  subsets: ["latin"],
+  weight: ["400", "600", "700"],
+});
+
+// โครงสร้างข้อมูลรางวัลใหญ่
+interface ChampionData {
   title: string;
   id: string;
-  rank: string;
+  isGrandChampion?: boolean;
 }
 
-export default function ResultsPage() {
-  const [classes] = useState<string[]>(['รางวัลแชมป์', 'Division A', 'Division B', 'Division C', 'Division D', 'Division E']);
-  const [activeTab, setActiveTab] = useState<string>('รางวัลแชมป์');
+// โครงสร้างข้อมูลอันดับ 1-5
+interface RankResult {
+  rank: number;
+  id: string;
+  name: string;
+}
+
+interface ClassData {
+  classId: string;
+  className: string;
+  results: RankResult[];
+}
+
+interface DivisionData {
+  divisionId: string;
+  divisionName: string;
+  subTitle: string;
+  classes: ClassData[];
+}
+
+export default function CompleteResultsPage() {
   const [searchQuery, setSearchQuery] = useState('');
 
   // ---------------------------------------------------------
-  // MOCK DATA: ข้อมูลจำลองเพื่อให้เห็น UI ทันที
+  // MOCK DATA 1: รางวัลใหญ่ (Grand Champion & Division)
   // ---------------------------------------------------------
-  const mockData: ResultBlock[][] = [
-    [
-      // index 0: แชมป์ใหญ่ (Grand Champion)
-      { title: "Grand Champion\nApc Betta Farm\nB9", id: "0728", rank: "" },
-      // index 1 เป็นต้นไป: แชมป์ดิวิชั่น
-      { title: "Division Champion A\nSivarang\nA5", id: "0072", rank: "" },
-      { title: "Division Champion B\nApc Betta Farm\nB9", id: "0728", rank: "" },
-      { title: "Division Champion C\nRich Betta\nC4", id: "0671", rank: "" },
-      { title: "Division Champion D\nArmmywarr x สมโชค\nD4", id: "0869", rank: "" },
-      { title: "Division Champion E\nThe Giant\nE7", id: "0985", rank: "" },
-    ]
+  const mockChampions: ChampionData[] = [
+    { title: "Grand Champion\nApc Betta Farm\nB9", id: "0728", isGrandChampion: true },
+    { title: "Division Champion A\nSivarang\nA5", id: "0072" },
+    { title: "Division Champion B\nApc Betta Farm\nB9", id: "0728" },
+    { title: "Division Champion C\nRich Betta\nC4", id: "0671" },
+    { title: "Division Champion D\nArmmywarr x สมโชค\nD4", id: "0869" },
+    { title: "Division Champion E\nThe Giant\nE7", id: "0985" },
   ];
 
-  // ใช้ Mock Data แทน State ที่รอ API
-  const resultsBlocks = mockData;
+  // ---------------------------------------------------------
+  // MOCK DATA 2: ผลอันดับ 1-5 รายคลาส
+  // ---------------------------------------------------------
+  const mockDatabase: DivisionData[] = [
+    {
+      divisionId: "div-a",
+      divisionName: "DIVISION A",
+      subTitle: "PK",
+      classes: [
+        {
+          classId: "A1",
+          className: "PK Retro Color",
+          results: [
+            { rank: 1, id: "0460", name: "ซุปเปอร์กาย" },
+            { rank: 2, id: "0068", name: "Sivarang" },
+            { rank: 3, id: "0876", name: "อดีตมารักโยมน๊ะจ๊ะ" },
+            { rank: 4, id: "1082", name: "OTF" },
+            { rank: 5, id: "0347", name: "จอมยุทธ เต๊ะ x TRW" },
+          ]
+        },
+        {
+          classId: "A2",
+          className: "PK Dark Solid",
+          results: [
+            { rank: 1, id: "0165", name: "Lucku Betta x แม็กโอเฟ่น" },
+            { rank: 2, id: "0915", name: "ศัตรินทร์ดาวร้ายผู้ชายขายปลา" },
+            { rank: 3, id: "1009", name: "จิ๊บ #ท้ายปลาแพง" },
+            { rank: 4, id: "0700", name: "บอสทับช้าง" },
+            { rank: 5, id: "0301", name: "Jordi GLAM UP" },
+          ]
+        },
+      ]
+    },
+    {
+      divisionId: "div-b",
+      divisionName: "DIVISION B",
+      subTitle: "SHORT FIN HMPK",
+      classes: [
+        {
+          classId: "B1",
+          className: "HMPK Dark Solid",
+          results: [
+            { rank: 1, id: "0390", name: "The Mummy" },
+            { rank: 2, id: "0216", name: "เม่น ตลาดไทย" },
+            { rank: 3, id: "0307", name: "Jordi GLAM UP" },
+            { rank: 4, id: "0998", name: "The Giant" },
+            { rank: 5, id: "0306", name: "Jordi GLAM UP" },
+          ]
+        }
+      ]
+    }
+  ];
+
+  // ฟังก์ชันเลื่อนหน้าจอไปยัง Division ที่เลือก
+  const scrollToDivision = (id: string) => {
+    if (id === 'top') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    const element = document.getElementById(id);
+    if (element) {
+      const y = element.getBoundingClientRect().top + window.scrollY - 100;
+      window.scrollTo({ top: y, behavior: 'smooth' });
+    }
+  };
+
+  // กรองข้อมูลรางวัลใหญ่ตามคำค้นหา
+  const filteredChampions = useMemo(() => {
+    if (!searchQuery) return mockChampions;
+    return mockChampions.filter(c => 
+      c.id.includes(searchQuery) || c.title.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [searchQuery]);
+
+  // กรองข้อมูลอันดับ 1-5 ตามคำค้นหา
+  const filteredData = useMemo(() => {
+    if (!searchQuery) return mockDatabase;
+    return mockDatabase.map(div => {
+      const filteredClasses = div.classes.map(cls => {
+        const filteredResults = cls.results.filter(r => 
+          r.id.includes(searchQuery) || r.name.toLowerCase().includes(searchQuery.toLowerCase())
+        );
+        return { ...cls, results: filteredResults };
+      }).filter(cls => cls.results.length > 0);
+      return { ...div, classes: filteredClasses };
+    }).filter(div => div.classes.length > 0);
+  }, [searchQuery]);
+
+  const getRankStyle = (rank: number) => {
+    switch(rank) {
+      case 1: return { border: "border-[#d4af37]/60", text: "text-[#d4af37]", bgHover: "hover:border-[#d4af37]" };
+      case 2: return { border: "border-gray-400/50", text: "text-gray-300", bgHover: "hover:border-gray-300" };
+      case 3: return { border: "border-[#b87333]/50", text: "text-[#b87333]", bgHover: "hover:border-[#b87333]" };
+      default: return { border: "border-[#222]", text: "text-gray-500", bgHover: "hover:border-gray-500" };
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-gray-300 font-sans p-4 md:p-8">
-      <div className="max-w-6xl mx-auto space-y-8">
-        
-        {/* 1. Header Navigation (Tabs) */}
-        <div className="flex overflow-x-auto space-x-1 border-b border-[#222] pb-0 scrollbar-hide">
-          {classes.map((cls, index) => (
-            <button
-              key={index}
-              onClick={() => setActiveTab(cls)}
-              className={`whitespace-nowrap px-8 py-4 text-sm font-medium transition-colors ${
-                activeTab === cls 
-                  ? 'bg-[#151515] text-[#d4af37] border-t-2 border-[#d4af37]' 
-                  : 'text-gray-500 hover:text-gray-300'
-              }`}
+    <div className="min-h-screen bg-[#090909] text-gray-300 font-sans pb-32">
+      
+      {/* 1. Navbar / Scroll Menu (Sticky) */}
+      <div className="sticky top-0 z-50 bg-[#090909]/95 backdrop-blur-md border-b border-[#222]">
+        <div className="max-w-[1400px] mx-auto px-4 md:px-8">
+          <div className="flex overflow-x-auto scrollbar-hide">
+            <button 
+              onClick={() => scrollToDivision('top')}
+              className="whitespace-nowrap px-6 md:px-10 py-5 text-sm transition-all text-[#d4af37] font-medium border-b-[3px] border-[#d4af37] bg-gradient-to-t from-[#d4af37]/10 to-transparent"
             >
-              {cls}
+              รางวัลแชมป์
             </button>
-          ))}
-        </div>
-
-        {/* 2. Search Bar */}
-        <div className="space-y-3">
-          <div className="flex justify-between items-center text-sm text-gray-400">
-            <label>ค้นหาผลรางวัล</label>
-            <span>216 ผลประกาศ</span>
+            {mockDatabase.map((div) => (
+              <button
+                key={div.divisionId}
+                onClick={() => scrollToDivision(div.divisionId)}
+                className="whitespace-nowrap px-6 md:px-10 py-5 text-sm transition-all text-gray-400 hover:text-white border-b-[3px] border-transparent hover:border-[#d4af37]"
+              >
+                {div.divisionName}
+              </button>
+            ))}
           </div>
-          <div className="bg-[#111] border border-[#222] rounded-lg p-1">
+        </div>
+      </div>
+
+      <div className="max-w-[1400px] mx-auto px-4 md:px-8 pt-8">
+        
+        {/* 2. หัวข้อและช่องค้นหา */}
+        <div className="space-y-3 mb-10" id="top">
+          <div className="flex justify-between items-end text-xs md:text-sm text-gray-400">
+            <label>ค้นหาผลรางวัล</label>
+            <span className="text-gray-500">216 ผลประกาศ</span>
+          </div>
+          <div className="bg-[#111] border border-[#222] rounded-md focus-within:border-[#d4af37]/50 transition-colors">
             <input 
               type="text" 
               placeholder="ค้นหาเลขโหล หรือชื่อผู้สมัคร เช่น 0012"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-transparent text-white rounded px-4 py-3 focus:outline-none focus:border-[#d4af37] transition-colors"
+              className="w-full bg-transparent text-gray-200 rounded-md px-5 py-4 focus:outline-none placeholder-gray-600 text-sm md:text-base"
             />
           </div>
         </div>
 
-        {/* 3. Results Display */}
-        <div className="space-y-12 pt-4">
-          {resultsBlocks.map((block, blockIndex) => {
-            const grandChamp = block[0];
-            const subChamps = block.slice(1);
+        {/* 3. ส่วนรางวัลแชมป์ (Grand Champion & Division Champions) */}
+        {(filteredChampions.length > 0) && (
+          <div className="flex flex-col space-y-6 mb-20">
+            
+            {/* Grand Champion */}
+            {filteredChampions.filter(d => d.isGrandChampion).map((grand, idx) => {
+              const parts = grand.title.split('\n'); 
+              const title = parts[0];
+              const name = parts[1];
+              const code = parts[2];
 
-            return (
-              <div key={blockIndex} className="space-y-6">
-                
-                {/* Grand Champion Card */}
-                {grandChamp && (
-                  <div className="relative bg-gradient-to-r from-[#111] to-[#0a0a0a] border border-[#d4af37]/40 rounded-lg p-6 md:p-10 flex justify-between items-center overflow-hidden group">
-                    {/* Corner Accents */}
-                    <div className="absolute top-0 left-0 w-6 h-6 border-t-2 border-l-2 border-[#d4af37] opacity-60 m-2"></div>
-                    <div className="absolute bottom-0 right-0 w-6 h-6 border-b-2 border-r-2 border-[#d4af37] opacity-60 m-2"></div>
+              return (
+                <div 
+                  key={`grand-${idx}`} 
+                  className="relative bg-[#151515] border border-[#d4af37]/50 rounded-md p-6 md:p-12 flex justify-between items-center overflow-hidden hover:border-[#d4af37]/90 transition-colors duration-700 group shadow-[0_0_30px_rgba(212,175,55,0.05)]"
+                >
+                  {/* --- พื้นหลังลายเส้นทแยงมุม --- */}
+                  <div 
+                    className="absolute inset-0 z-0 opacity-20 pointer-events-none"
+                    style={{
+                      backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 10px, #333 10px, #333 11px)'
+                    }}
+                  ></div>
+
+                  {/* --- เอฟเฟกต์แสงกระจกสีทองวิ่งพาด (Luxury Gold Shine) --- */}
+                  <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
+                    <div className="absolute top-0 bottom-0 w-full bg-gradient-to-r from-transparent via-[#d4af37]/20 to-transparent animate-shine-slow"></div>
+                  </div>
+
+                  <div className="absolute top-4 left-4 w-4 h-4 md:w-6 md:h-6 border-t-[1px] border-l-[1px] border-[#d4af37] opacity-100 z-10"></div>
+                  <div className="absolute bottom-4 right-4 w-4 h-4 md:w-6 md:h-6 border-b-[1px] border-r-[1px] border-[#d4af37] opacity-100 z-10"></div>
+                  
+                  <div className="ml-2 md:ml-4 z-10 flex flex-col gap-1 md:gap-2">
+                    <h2 className="text-[#d4af37] text-xl md:text-3xl font-bold tracking-wide">
+                      {title}
+                    </h2>
+                    <p className="text-gray-200 text-sm md:text-xl font-medium">{name}</p>
+                    <p className="text-gray-500 text-xs md:text-sm">{code}</p>
+                  </div>
+                  <div className="mr-2 md:mr-4 z-10">
+                    <span className="text-6xl md:text-[100px] ${playfair.className} text-[#f2e3c6] tracking-widest drop-shadow-[0_0_15px_rgba(212,175,55,0.3)]">
+                      {grand.id}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Grid 5 Division Champions */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 md:gap-4 pt-2">
+              {filteredChampions.filter(d => !d.isGrandChampion).map((item, idx) => {
+                const parts = item.title.split('\n');
+                const divTitle = parts[0];
+                const name = parts[1];
+                const code = parts[2];
+
+                return (
+                  <div 
+                    key={idx} 
+                    className="relative bg-[#151515] border border-[#333] rounded-md p-5 md:p-6 flex flex-col aspect-[3/3.8] group hover:border-[#555] transition-all duration-300 cursor-default overflow-hidden"
+                  >
+                     {/* --- พื้นหลังลายเส้นทแยงมุม --- */}
+                     <div 
+                      className="absolute inset-0 z-0 opacity-[0.15] pointer-events-none"
+                      style={{
+                        backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 8px, #444 8px, #444 9px)'
+                      }}
+                    ></div>
+
+                    {/* --- เอฟเฟกต์แสงกระจกวิ่งพาด --- */}
+                    <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
+                      <div 
+                        className="absolute top-0 bottom-0 w-full bg-gradient-to-r from-transparent via-white/[0.04] to-transparent animate-shine"
+                        style={{ animationDelay: `${idx * 0.3}s` }} 
+                      ></div>
+                    </div>
+
+                    <div className="absolute top-3 left-3 w-3 h-3 border-t-[1px] border-l-[1px] border-gray-500/60 group-hover:border-[#d4af37]/70 transition-colors duration-300 z-10"></div>
+                    <div className="absolute bottom-3 right-3 w-3 h-3 border-b-[1px] border-r-[1px] border-gray-500/60 group-hover:border-[#d4af37]/70 transition-colors duration-300 z-10"></div>
                     
-                    <div>
-                      <h2 className="text-[#d4af37] text-2xl md:text-3xl font-serif whitespace-pre-line leading-snug">
-                        {grandChamp.title}
-                      </h2>
-                      {grandChamp.rank && <p className="text-sm text-gray-400 mt-2">{grandChamp.rank}</p>}
-                    </div>
-                    <div>
-                      <span className="text-5xl md:text-7xl font-serif text-[#f2e3c6] tracking-widest drop-shadow-lg">
-                        {grandChamp.id}
-                      </span>
-                    </div>
-                  </div>
-                )}
-
-                {/* Sub Division Cards */}
-                {subChamps.length > 0 && (
-                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                    {subChamps.map((item, idx) => (
-                      <div key={idx} className="relative bg-[#111] border border-[#222] hover:border-[#d4af37]/30 transition-all duration-300 rounded-lg p-6 flex flex-col justify-between aspect-[4/5] group">
-                         {/* Corner accents for sub cards */}
-                        <div className="absolute top-0 left-0 w-3 h-3 border-t border-l border-gray-600 group-hover:border-[#d4af37] opacity-50 m-2 transition-colors"></div>
-                        <div className="absolute bottom-0 right-0 w-3 h-3 border-b border-r border-gray-600 group-hover:border-[#d4af37] opacity-50 m-2 transition-colors"></div>
-                        
-                        <div>
-                          <h3 className="text-sm font-semibold text-gray-200 whitespace-pre-line leading-relaxed">
-                            {item.title}
-                          </h3>
-                          {item.rank && <p className="text-xs text-gray-500 mt-2">{item.rank}</p>}
-                        </div>
-                        <div className="mt-6">
-                          <span className="text-4xl font-serif text-white tracking-widest group-hover:text-[#f2e3c6] transition-colors">
-                            {item.id}
-                          </span>
-                        </div>
+                    <div className="z-10 flex flex-col h-full">
+                      <h3 className="text-xs md:text-[14px] font-semibold text-gray-200">
+                        {divTitle}
+                      </h3>
+                      
+                      <div className="mt-4 md:mt-6">
+                        <span className="text-5xl md:text-6xl ${playfair.className} text-white tracking-widest group-hover:text-[#f2e3c6] transition-colors drop-shadow-sm block">
+                          {item.id}
+                        </span>
+                        <p className="text-sm md:text-base text-gray-300 mt-2 md:mt-4 font-medium">
+                          {name}
+                        </p>
                       </div>
-                    ))}
+                      
+                      <div className="mt-auto border-t border-[#333] pt-3">
+                        <p className="text-[10px] md:text-[11px] text-gray-500 font-semibold tracking-wider">
+                          {code}
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
+        {/* 4. หัวข้อ Class Placements */}
+        {filteredData.length > 0 && (
+          <div className="mb-8">
+            <h1 className="text-[10px] text-gray-500 uppercase tracking-widest mb-2">Class Placements</h1>
+            <h2 className="text-xl md:text-2xl font-medium text-white">ผลอันดับ 1-5 รายคลาส</h2>
+          </div>
+        )}
+
+        {/* 5. เนื้อหาผลอันดับ 1-5 (เรียงต่อกันยาวลงมา) */}
+        <div className="space-y-16">
+          {filteredData.map((division) => (
+            <div key={division.divisionId} id={division.divisionId} className="scroll-mt-32">
+              
+              <div className="flex justify-between items-end border-b border-[#222] pb-3 mb-6">
+                <div className="flex items-baseline gap-3">
+                  <h3 className="text-[#d4af37] font-semibold tracking-wider text-lg">
+                    {division.divisionName}
+                  </h3>
+                  <span className="text-sm text-gray-400">{division.subTitle}</span>
+                </div>
+              </div>
+
+              <div className="space-y-10">
+                {division.classes.map((cls) => (
+                  <div key={cls.classId}>
+                    <div className="flex items-center gap-3 mb-4">
+                      <span className="text-[#d4af37] font-bold text-lg">{cls.classId}</span>
+                      <span className="text-sm text-gray-300">{cls.className}</span>
+                    </div>
+
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                      {cls.results.map((item) => {
+                        const style = getRankStyle(item.rank);
+                        return (
+                          <div 
+                            key={item.id} 
+                            className={`relative bg-gradient-to-br from-[#121212] to-[#0a0a0a] border-[1px] ${style.border} ${style.bgHover} rounded-md p-4 flex flex-col justify-between aspect-[4/3] transition-colors duration-300 group`}
+                          >
+                            <div className="flex justify-between items-start">
+                              <div className="flex items-center gap-1.5 opacity-80">
+                                {item.rank === 1 && <span className="text-[#d4af37] text-xs">👑</span>}
+                                {item.rank === 2 && <span className="text-gray-300 text-xs">🥈</span>}
+                                {item.rank === 3 && <span className="text-[#b87333] text-xs">🥉</span>}
+                                <span className={`text-[10px] uppercase tracking-wider ${style.text}`}>Rank {item.rank}</span>
+                              </div>
+                              <div className="text-right">
+                                <span className={`text-xl md:text-2xl ${playfair.className} leading-none ${style.text}`}>{item.rank}</span>
+                                <p className="text-[8px] text-gray-600 uppercase mt-0.5">Place</p>
+                              </div>
+                            </div>
+                            
+                            <div className="my-3">
+                              <span className="text-2xl md:text-3xl ${playfair.className} text-white tracking-widest drop-shadow-sm group-hover:text-gray-100 transition-colors">
+                                {item.id}
+                              </span>
+                            </div>
+
+                            <div className="border-t border-[#333] pt-2 mt-auto">
+                              <p className="text-[10px] md:text-xs text-gray-400 truncate w-full" title={item.name}>
+                                {item.name}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+            </div>
+          ))}
+
+          {/* กรณีพิมพ์ค้นหาแล้วไม่เจอข้อมูลใดๆ เลย */}
+          {filteredChampions.length === 0 && filteredData.length === 0 && (
+            <div className="text-center py-20 text-gray-500">
+              ไม่พบผลการแข่งขันที่คุณค้นหา
+            </div>
+          )}
+
+        </div>
       </div>
     </div>
   );

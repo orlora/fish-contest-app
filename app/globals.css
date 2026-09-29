@@ -24,3 +24,25 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+@keyframes shine {
+  0% { transform: translateX(-150%) skewX(-20deg); }
+  70% { transform: translateX(200%) skewX(-20deg); }
+  100% { transform: translateX(200%) skewX(-20deg); }
+}
+
+@keyframes shine-grand {
+  0% { transform: translateX(-150%) skewX(-20deg); }
+  60% { transform: translateX(200%) skewX(-20deg); }
+  100% { transform: translateX(200%) skewX(-20deg); }
+}
+
+/* แสงปกติสำหรับ Division ทั่วไป (วิ่งทุก 5 วินาที) */
+.animate-shine {
+  animation: shine 5s ease-in-out infinite;
+}
+
+/* แสงช้าและนุ่มนวล สำหรับ Grand Champion (วิ่งทุก 7 วินาที) */
+.animate-shine-slow {
+  animation: shine-grand 7s ease-in-out infinite;
+}

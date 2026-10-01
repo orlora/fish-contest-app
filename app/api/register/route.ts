@@ -1,5 +1,12 @@
 import { NextResponse } from 'next/server';
 
+export async function GET() {
+  const url = process.env.GOOGLE_APPS_SCRIPT_URL || '';
+  const response = await fetch(url, { redirect: "follow" });
+  const data = await response.json();
+  return NextResponse.json(data);
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();

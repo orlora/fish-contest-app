@@ -63,7 +63,6 @@ export default function CompleteResultsPage() {
   const [divisionData, setDivisionData] = useState<DivisionData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // 🔴 ใส่ URL ของ Web App Google Apps Script ที่ Deploy ไว้ตรงนี้
   const GOOGLE_APPS_SCRIPT_URL = process.env.NEXT_PUBLIC_GOOGLE_APPS_SCRIPT_URL || '';
 
   // 2. ฟังก์ชันดึงและแปลงข้อมูล (Data Transformation)
@@ -71,10 +70,7 @@ export default function CompleteResultsPage() {
     const fetchResults = async () => {
       try {
         setIsLoading(true);
-        const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
-          method: "GET",
-          redirect: "follow" 
-        });
+        const response = await fetch('/api/results');
         const resultJson = await response.json();
         
         if (resultJson.status === "success" && resultJson.data) {

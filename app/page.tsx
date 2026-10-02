@@ -38,6 +38,7 @@ interface RawResultItem {
   title: string;
   id: string;
   rank: string;
+  name?: string;
 }
 
 interface RawChampionItem {
@@ -113,11 +114,15 @@ export default function CompleteResultsPage() {
             divMap[divId].classes.push({
               classId: classId,
               className: `Class ${classId}`,
-              results: block.map((item, idx) => ({
-                rank: idx + 1,
-                id: item.id !== "-" ? item.id : "",
-                name: item.rank !== "-" && item.rank !== "" ? item.rank : "รอผล"
-              }))
+              results: block.map((item: RawResultItem, idx: number) => {
+                const validName = item.name || "";
+                
+                return {
+                  rank: idx + 1,
+                  id: item.id !== "-" ? item.id : "",
+                  name: validName !== "-" && validName !== "" ? validName : "ไม่มีชื่อผู้สมัคร"
+                };
+              })
             });
           });
 
@@ -134,7 +139,7 @@ export default function CompleteResultsPage() {
     fetchResults();
   }, []);
 
-useEffect(() => {
+  useEffect(() => {
     const handleScroll = () => {
       // รวม ID ของทุกโซน ('top' คือรางวัลแชมป์)
       const sectionIds = ['top', ...divisionData.map(d => d.divisionId)];
@@ -145,8 +150,6 @@ useEffect(() => {
         if (element) {
           const rect = element.getBoundingClientRect();
           
-          // rect.top คือระยะจากขอบจอถึง "หัวโซน"
-          // rect.bottom คือระยะจากขอบจอถึง "ท้ายโซน"
           // เช็คว่าตำแหน่ง Navbar (ประมาณ 250px จากขอบจอ) กำลังพาดผ่านโซนนี้อยู่หรือไม่
           if (rect.top <= 250 && rect.bottom > 250) {
             currentVisibleSection = id;
@@ -268,6 +271,7 @@ useEffect(() => {
     }
   };
 
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-[#090909] text-[#d4af37] flex items-center justify-center font-serif text-2xl animate-pulse">
@@ -284,7 +288,7 @@ useEffect(() => {
           <h1 className="text-4xl md:text-5xl font-bold text-center text-[#d4af37] tracking-wider relative z-10">
             Competition Results
           </h1>
-          {/* ลายเส้นตกแต่งด้านหลัง */}
+
           <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-48 h-48 border border-[#d4af37]/10 rotate-45 -z-0 pointer-events-none"></div>
         </div>
 
@@ -303,12 +307,12 @@ useEffect(() => {
               รางวัลแชมป์
             </button>
             
-            {/* ปุ่ม Division (ลบ hover ออกแล้ว) */}
+            {/* ปุ่ม Division */}
             {divisionData.map((div) => (
               <button
                 key={div.divisionId}
                 onClick={() => scrollToDivision(div.divisionId)}
-                className="whitespace-nowrap flex-1 min-w-[120px] text-center py-3 px-4 rounded text-sm md:text-base font-medium text-gray-400"
+                className="whitespace-nowrap flex-1 min-w-[120px] text-center py-3 px-4 rounded text-sm md:text-base font-medium text-gray-400 hover:bg-[#1a1a1a] hover:text-gray-200 transition-colors duration-300"
               >
                 {div.divisionName}
               </button>
@@ -317,7 +321,7 @@ useEffect(() => {
           </div>
         </div>
       </div>
-
+      
       <div className="max-w-[1400px] mx-auto px-4 md:px-8 pt-8">
         
         {/* 2. ช่องค้นหา */}

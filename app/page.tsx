@@ -335,7 +335,7 @@ export default function CompleteResultsPage() {
           <div className="bg-[#111] border border-[#222] rounded-md focus-within:border-[#d4af37]/50 transition-colors">
             <input 
               type="text" 
-              placeholder="ค้นหาเลขโหล หรือชื่อผู้สมัคร เช่น A001"
+              placeholder="ค้นหาเลขโหล หรือชื่อผู้สมัคร เช่น 100"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full bg-transparent text-gray-200 rounded-md px-5 py-4 focus:outline-none placeholder-gray-600 text-sm md:text-base"
